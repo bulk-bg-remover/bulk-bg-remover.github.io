@@ -21,6 +21,7 @@ Processes 50+ images simultaneously with **zero server uploads**, privacy-first 
 - **100% Client-Side Privacy**: All neural network inference and canvas image manipulation occur strictly inside your browser memory. Your photos never leave your device.
 - **Hardware-Accelerated WebGPU**: Leverages computer and mobile GPUs directly for sub-second image segmentation, with automatic CPU / WebAssembly SIMD fallback.
 - **High-Volume Batch Processing**: Drop 10, 50, or 100+ images in a single batch. Multi-threaded sequential queue keeps the browser responsive at all times.
+- **Multi-Tier AI Engine Selector**: Select between **🌟 Ultra Quality (`isnet_fp16`)** (~40 MB) for maximum fidelity, **⚡ Fast & Low-Memory (`isnet_quint8`)** (~20 MB, 2x faster) for mobile/budget devices, or **🎯 Standard Full (`isnet`)** (~80 MB).
 - **Customizable Output Backplates**: Export clean transparent alpha PNGs, studio white (`#FFFFFF`), solid black (`#000000`), or custom hex colors.
 - **Instant ZIP Export**: Bundle all processed images into a neatly named ZIP archive in one click using JSZip.
 - **Dynamic Upload Experience**: The large dashed dropzone automatically hides when images are queued, giving full focus to workspace controls and cards.

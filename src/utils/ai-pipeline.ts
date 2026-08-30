@@ -1,6 +1,7 @@
 import { removeBackground, preload, type Config } from '@imgly/background-removal';
 
 export type DeviceType = 'webgpu' | 'wasm';
+export type ModelTier = 'isnet_fp16' | 'isnet_quint8' | 'isnet';
 
 export interface ModelProgressInfo {
   status: 'init' | 'downloading' | 'loading' | 'ready' | 'error';
@@ -9,6 +10,7 @@ export interface ModelProgressInfo {
   loadedBytes?: number;
   totalBytes?: number;
   message?: string;
+  modelTier?: ModelTier;
 }
 
 export type ModelProgressListener = (info: ModelProgressInfo) => void;
@@ -18,11 +20,21 @@ class BackgroundRemovalPipeline {
   private isInitializing: boolean = false;
   private isReady: boolean = false;
   private activeDevice: DeviceType = 'wasm';
+  private activeTier: ModelTier = 'isnet_fp16';
   private listeners: Set<ModelProgressListener> = new Set();
   private fileProgressMap: Map<string, { loaded: number; total: number }> = new Map();
   private initPromise: Promise<void> | null = null;
 
-  private constructor() {}
+  private constructor() {
+    if (typeof window !== 'undefined') {
+      try {
+        const savedTier = localStorage.getItem('bulk_bg_model_tier') as ModelTier;
+        if (savedTier === 'isnet_fp16' || savedTier === 'isnet_quint8' || savedTier === 'isnet') {
+          this.activeTier = savedTier;
+        }
+      } catch (e) {}
+    }
+  }
 
   public static getInstance(): BackgroundRemovalPipeline {
     if (!BackgroundRemovalPipeline.instance) {
@@ -46,6 +58,26 @@ class BackgroundRemovalPipeline {
     }
   }
 
+  public getModelTier(): ModelTier {
+    return this.activeTier;
+  }
+
+  public async setModelTier(tier: ModelTier): Promise<void> {
+    if (this.activeTier === tier && this.isReady) return;
+    this.activeTier = tier;
+    this.isReady = false;
+    this.initPromise = null;
+    this.fileProgressMap.clear();
+
+    if (typeof window !== 'undefined') {
+      try {
+        localStorage.setItem('bulk_bg_model_tier', tier);
+      } catch (e) {}
+    }
+
+    return this.initialize();
+  }
+
   public subscribe(listener: ModelProgressListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -54,22 +86,23 @@ class BackgroundRemovalPipeline {
   private notifyListeners(info: ModelProgressInfo): void {
     this.listeners.forEach((listener) => {
       try {
-        listener(info);
+        listener({ ...info, modelTier: this.activeTier });
       } catch (e) {
         console.error('Error in model progress listener:', e);
       }
     });
   }
 
-  public getReadyStatus(): { isReady: boolean; device: DeviceType } {
+  public getReadyStatus(): { isReady: boolean; device: DeviceType; modelTier: ModelTier } {
     return {
       isReady: this.isReady,
       device: this.activeDevice,
+      modelTier: this.activeTier,
     };
   }
 
   /**
-   * Preloads the high-quality ISNet model in browser cache.
+   * Preloads the selected ISNet model in browser cache.
    */
   public async initialize(): Promise<void> {
     if (this.isReady) return;
@@ -90,7 +123,7 @@ class BackgroundRemovalPipeline {
     this.notifyListeners({
       status: 'init',
       progress: 0,
-      message: `Initializing AI Engine (${preferredDevice.toUpperCase()})...`,
+      message: `Initializing ${this.activeTier.toUpperCase()} (${preferredDevice.toUpperCase()})...`,
     });
 
     const progressHandler = (key: string, current: number, total: number) => {
@@ -114,13 +147,13 @@ class BackgroundRemovalPipeline {
         loadedBytes: totalLoaded,
         totalBytes: totalBytes,
         message: totalBytes > 0
-          ? `Downloading AI Model: ${loadedMB} MB / ${totalMB} MB (${percent}%)`
+          ? `Downloading ${this.activeTier.toUpperCase()}: ${loadedMB} MB / ${totalMB} MB (${percent}%)`
           : `Downloading AI Model (${percent}%)...`,
       });
     };
 
     const config: Config = {
-      model: 'isnet_fp16', // High quality float16 precision ISNet model
+      model: this.activeTier,
       device: imglyDevice,
       rescale: true,
       progress: progressHandler,
@@ -139,14 +172,14 @@ class BackgroundRemovalPipeline {
       this.notifyListeners({
         status: 'ready',
         progress: 100,
-        message: `AI Engine Ready (${this.activeDevice.toUpperCase()})`,
+        message: `AI Engine Ready (${this.activeDevice.toUpperCase()} - ${this.activeTier})`,
       });
     } catch (err: any) {
-      console.warn(`GPU preload failed, falling back to CPU/WASM:`, err?.message || err);
+      console.warn(`GPU preload failed for ${this.activeTier}, falling back to CPU/WASM:`, err?.message || err);
       if (imglyDevice === 'gpu') {
         try {
           const fallbackConfig: Config = {
-            model: 'isnet_fp16',
+            model: this.activeTier,
             device: 'cpu',
             rescale: true,
             progress: progressHandler,
@@ -163,7 +196,7 @@ class BackgroundRemovalPipeline {
           this.notifyListeners({
             status: 'ready',
             progress: 100,
-            message: 'AI Engine Ready (WASM Fallback)',
+            message: `AI Engine Ready (WASM - ${this.activeTier})`,
           });
           return;
         } catch (cpuErr: any) {
@@ -198,7 +231,7 @@ class BackgroundRemovalPipeline {
     const imglyDevice: 'gpu' | 'cpu' = webgpuAvailable ? 'gpu' : 'cpu';
 
     const config: Config = {
-      model: 'isnet_fp16',
+      model: this.activeTier,
       device: imglyDevice,
       rescale: true,
       output: {

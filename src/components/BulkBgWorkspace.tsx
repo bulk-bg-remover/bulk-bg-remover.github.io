@@ -24,7 +24,7 @@ import {
   type BgColorType,
   type ProcessedItem,
 } from '../utils/image-helpers';
-import { aiPipeline, type ModelProgressInfo, type DeviceType } from '../utils/ai-pipeline';
+import { aiPipeline, type ModelProgressInfo, type DeviceType, type ModelTier } from '../utils/ai-pipeline';
 
 interface WorkspaceProps {
   lang: SupportedLanguage;
@@ -45,6 +45,7 @@ export default function BulkBgWorkspace({ lang = defaultLang }: WorkspaceProps) 
   const [customHex, setCustomHex] = useState<string>('#8B639B');
 
   // AI Pipeline & Model Loading State
+  const [selectedTier, setSelectedTier] = useState<ModelTier>('isnet_fp16');
   const [modelProgress, setModelProgress] = useState<ModelProgressInfo | null>(null);
   const [activeDevice, setActiveDevice] = useState<DeviceType>('wasm');
   const [isModelReady, setIsModelReady] = useState(false);
@@ -53,6 +54,16 @@ export default function BulkBgWorkspace({ lang = defaultLang }: WorkspaceProps) 
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isProcessingRef = useRef(false);
+
+  const handleTierChange = async (tier: ModelTier) => {
+    if (tier === selectedTier) return;
+    setSelectedTier(tier);
+    try {
+      await aiPipeline.setModelTier(tier);
+    } catch (e) {
+      console.error('Error switching model tier:', e);
+    }
+  };
 
   // Subscribe to model download progress
   useEffect(() => {
@@ -354,6 +365,141 @@ export default function BulkBgWorkspace({ lang = defaultLang }: WorkspaceProps) 
           e.target.value = '';
         }}
       />
+
+      {/* ═══════════════════════════════════════════════════════════════════
+          AI MODEL QUALITY & PERFORMANCE SELECTOR (User-Friendly UI/UX)
+          ═══════════════════════════════════════════════════════════════════ */}
+      <div className="rounded-3xl border border-slate-200 dark:border-[#403D88]/40 bg-white/80 dark:bg-[#151329]/80 p-4 sm:p-5 shadow-xs backdrop-blur-xs space-y-3.5">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-100 dark:border-[#403D88]/30 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#403D88] to-[#8B639B] text-white flex items-center justify-center shadow-xs shrink-0">
+              <Cpu className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <span>{(t as any).modelTierSectionTitle || 'Select AI Quality & Performance'}</span>
+                <span className="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-[#AF719D]/15 dark:bg-[#403D88]/50 text-[#8B639B] dark:text-[#F8B2B2] border border-[#AF719D]/30">
+                  {selectedTier === 'isnet_fp16'
+                    ? (t as any).modelTierFp16Title || '🌟 High Quality'
+                    : selectedTier === 'isnet_quint8'
+                    ? (t as any).modelTierInt8Title || '⚡ Fast & Light'
+                    : (t as any).modelTierFp32Title || '🔥 Maximum Detail'}
+                </span>
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                {(t as any).modelTierSectionHelp || 'Choose the AI model best suited for your device speed and image complexity:'}
+              </p>
+            </div>
+          </div>
+
+          <div className="self-start sm:self-auto flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border border-[#8B639B]/20 dark:border-[#8B639B]/40 bg-[#AF719D]/10 dark:bg-[#403D88]/40 text-[#403D88] dark:text-[#F8B2B2]">
+            {activeDevice === 'webgpu' ? (
+              <>
+                <Zap className="w-3.5 h-3.5 text-amber-500" />
+                <span>WebGPU Accelerated</span>
+              </>
+            ) : (
+              <>
+                <Cpu className="w-3.5 h-3.5 text-[#8B639B]" />
+                <span>WASM SIMD Fallback</span>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* 3 Interactive Model Selection Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          {/* Option 1: FP16 (Recommended) */}
+          <button
+            type="button"
+            onClick={() => handleTierChange('isnet_fp16')}
+            disabled={isProcessingBatch}
+            className={`relative text-left p-3.5 rounded-2xl border-2 transition-all duration-200 flex flex-col justify-between space-y-2 cursor-pointer ${
+              selectedTier === 'isnet_fp16'
+                ? 'border-[#8B639B] bg-[#AF719D]/10 dark:bg-[#403D88]/40 shadow-sm ring-2 ring-[#8B639B]/20'
+                : 'border-slate-200 dark:border-[#403D88]/40 bg-slate-50/60 dark:bg-[#1a183b]/40 hover:border-[#8B639B]/50 hover:bg-[#AF719D]/5'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                {(t as any).modelTierFp16Title || '🌟 High Quality'}
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                {(t as any).modelTierFp16Badge || 'Recommended'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+              {(t as any).modelTierFp16Desc || 'Crisp edges & hair separation. Perfect for 90% of laptops & smartphones.'}
+            </p>
+            <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-[#403D88]/30 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+              <span>Size: {(t as any).modelTierFp16Size || '~40 MB'}</span>
+              {selectedTier === 'isnet_fp16' && (
+                <span className="text-[#8B639B] dark:text-[#F8B2B2] font-bold">● Selected</span>
+              )}
+            </div>
+          </button>
+
+          {/* Option 2: INT8 (Fast & Light) */}
+          <button
+            type="button"
+            onClick={() => handleTierChange('isnet_quint8')}
+            disabled={isProcessingBatch}
+            className={`relative text-left p-3.5 rounded-2xl border-2 transition-all duration-200 flex flex-col justify-between space-y-2 cursor-pointer ${
+              selectedTier === 'isnet_quint8'
+                ? 'border-[#8B639B] bg-[#AF719D]/10 dark:bg-[#403D88]/40 shadow-sm ring-2 ring-[#8B639B]/20'
+                : 'border-slate-200 dark:border-[#403D88]/40 bg-slate-50/60 dark:bg-[#1a183b]/40 hover:border-[#8B639B]/50 hover:bg-[#AF719D]/5'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                {(t as any).modelTierInt8Title || '⚡ Fast & Light'}
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                {(t as any).modelTierInt8Badge || '2× Faster'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+              {(t as any).modelTierInt8Desc || 'Lowest memory usage. Ideal for budget phones, slow internet & quick drafts.'}
+            </p>
+            <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-[#403D88]/30 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+              <span>Size: {(t as any).modelTierInt8Size || '~20 MB'}</span>
+              {selectedTier === 'isnet_quint8' && (
+                <span className="text-[#8B639B] dark:text-[#F8B2B2] font-bold">● Selected</span>
+              )}
+            </div>
+          </button>
+
+          {/* Option 3: FP32 (Maximum Detail) */}
+          <button
+            type="button"
+            onClick={() => handleTierChange('isnet')}
+            disabled={isProcessingBatch}
+            className={`relative text-left p-3.5 rounded-2xl border-2 transition-all duration-200 flex flex-col justify-between space-y-2 cursor-pointer ${
+              selectedTier === 'isnet'
+                ? 'border-[#8B639B] bg-[#AF719D]/10 dark:bg-[#403D88]/40 shadow-sm ring-2 ring-[#8B639B]/20'
+                : 'border-slate-200 dark:border-[#403D88]/40 bg-slate-50/60 dark:bg-[#1a183b]/40 hover:border-[#8B639B]/50 hover:bg-[#AF719D]/5'
+            }`}
+          >
+            <div className="flex items-center justify-between gap-1.5">
+              <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white flex items-center gap-1">
+                {(t as any).modelTierFp32Title || '🔥 Maximum Detail'}
+              </span>
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-violet-100 dark:bg-violet-950/80 text-[#8B639B] dark:text-[#F8B2B2] border border-violet-200 dark:border-violet-800">
+                {(t as any).modelTierFp32Badge || 'HD Precision'}
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-600 dark:text-slate-400 leading-relaxed">
+              {(t as any).modelTierFp32Desc || 'Full 32-bit floating point precision for complex fur & glass on high-end PCs.'}
+            </p>
+            <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-[#403D88]/30 text-[10px] font-medium text-slate-500 dark:text-slate-400">
+              <span>Size: {(t as any).modelTierFp32Size || '~80 MB'}</span>
+              {selectedTier === 'isnet' && (
+                <span className="text-[#8B639B] dark:text-[#F8B2B2] font-bold">● Selected</span>
+              )}
+            </div>
+          </button>
+        </div>
+      </div>
 
       {/* Floating Drag Overlay when images are already in queue */}
       {isDragging && items.length > 0 && (
