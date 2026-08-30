@@ -1,0 +1,121 @@
+---
+import { ui, languages, defaultLang, type SupportedLanguage } from '../i18n/ui';
+import { getLocalizedPath } from '../i18n/utils';
+
+interface Props {
+  lang: SupportedLanguage;
+}
+
+const { lang = defaultLang } = Astro.props;
+const t = ui[lang] || ui[defaultLang];
+const currentUrl = Astro.url.pathname;
+const currentYear = new Date().getFullYear();
+---
+
+<footer class="w-full border-t border-slate-200 dark:border-[#403D88]/40 bg-white/60 dark:bg-[#0f0e1d]/90 backdrop-blur-md transition-colors mt-12 sm:mt-16 lg:mt-20">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-12 space-y-8 sm:space-y-10">
+    <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 sm:gap-8">
+      <!-- Brand & Privacy Promise -->
+      <div class="md:col-span-2 space-y-3">
+        <div class="flex items-center gap-2.5">
+          <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-[#403D88] via-[#8B639B] to-[#AF719D] flex items-center justify-center text-white shadow-xs">
+            <svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <rect width="18" height="18" x="3" y="3" rx="2" ry="2"/>
+              <circle cx="9" cy="9" r="2"/>
+              <path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/>
+            </svg>
+          </div>
+          <span class="font-bold text-base text-slate-900 dark:text-white">
+            {t.nav.brandName}
+          </span>
+        </div>
+        <p class="text-xs text-slate-500 dark:text-slate-400 max-w-md leading-relaxed">
+          {t.footer.description}
+        </p>
+        <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-[11px] font-semibold text-emerald-700 dark:text-emerald-400">
+          <svg class="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12c0 1.268-.63 2.39-1.593 3.068a3.745 3.745 0 01-1.043 3.296 3.745 3.745 0 01-3.296 1.043A3.745 3.745 0 0112 21c-1.268 0-2.39-.63-3.068-1.593a3.746 3.746 0 01-3.296-1.043 3.745 3.745 0 01-1.043-3.296A3.745 3.745 0 013 12c0-1.268.63-2.39 1.593-3.068a3.745 3.745 0 011.043-3.296 3.746 3.746 0 013.296-1.043A3.746 3.746 0 0112 3c1.268 0 2.39.63 3.068 1.593a3.746 3.746 0 013.296 1.043 3.746 3.746 0 011.043 3.296A3.745 3.745 0 0121 12z"/>
+          </svg>
+          <span>{t.footer.privacyGuarantee}</span>
+        </div>
+      </div>
+
+      <!-- Quick Navigation Links -->
+      <div class="space-y-3">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+          {t.footer.navigation}
+        </h4>
+        <ul class="space-y-2 text-xs text-slate-600 dark:text-slate-400">
+          <li>
+            <a href="#features" class="hover:text-[#8B639B] dark:hover:text-[#F8B2B2] transition-colors">
+              {t.nav.features}
+            </a>
+          </li>
+          <li>
+            <a href="#how-it-works" class="hover:text-[#8B639B] dark:hover:text-[#F8B2B2] transition-colors">
+              {t.nav.howItWorks}
+            </a>
+          </li>
+          <li>
+            <a href="#comparison" class="hover:text-[#8B639B] dark:hover:text-[#F8B2B2] transition-colors">
+              {t.nav.comparison}
+            </a>
+          </li>
+          <li>
+            <a href="#faq" class="hover:text-[#8B639B] dark:hover:text-[#F8B2B2] transition-colors">
+              {t.nav.faq}
+            </a>
+          </li>
+          <li>
+            <a
+              href="https://buymeacoffee.com/kisharadilz"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 font-semibold text-[#8B639B] dark:text-[#F8B2B2] hover:text-[#403D88] dark:hover:text-white transition-colors"
+            >
+              <span>☕ {t.nav.supportDev}</span>
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Internationalization Links -->
+      <div class="space-y-3">
+        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-900 dark:text-white">
+          {t.footer.languages}
+        </h4>
+        <div class="grid grid-cols-2 gap-2 text-xs">
+          {Object.entries(languages).map(([lKey, lData]) => {
+            const langCode = lKey as SupportedLanguage;
+            const href = getLocalizedPath(currentUrl, langCode);
+            const isActive = langCode === lang;
+
+            return (
+              <a
+                href={href}
+                hreflang={langCode}
+                lang={langCode}
+                class={`flex items-center gap-1.5 transition-colors ${
+                  isActive
+                    ? 'font-bold text-[#8B639B] dark:text-[#F8B2B2]'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                <span>{lData.flag}</span>
+                <span>{lData.name}</span>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Bar -->
+    <div class="pt-6 border-t border-slate-200/80 dark:border-[#403D88]/30 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-500 dark:text-slate-400">
+      <p>
+        © {currentYear} {t.nav.brandName}. {t.footer.rights}
+      </p>
+      <p>{t.footer.builtWith}</p>
+    </div>
+  </div>
+</footer>

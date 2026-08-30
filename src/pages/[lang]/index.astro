@@ -1,0 +1,46 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import Hero from '../../components/Hero.astro';
+import BulkBgWorkspace from '../../components/BulkBgWorkspace';
+import Features from '../../components/Features.astro';
+import HowItWorks from '../../components/HowItWorks.astro';
+import ComparisonTable from '../../components/ComparisonTable.astro';
+import FaqSection from '../../components/FaqSection.astro';
+import SeoContent from '../../components/SeoContent.astro';
+import { languages, type SupportedLanguage, defaultLang } from '../../i18n/ui';
+
+export function getStaticPaths() {
+  return Object.keys(languages)
+    .filter((l) => l !== defaultLang)
+    .map((lang) => ({
+      params: { lang },
+    }));
+}
+
+const { lang } = Astro.params as { lang: SupportedLanguage };
+---
+
+<Layout lang={lang}>
+  <!-- Hero Section -->
+  <Hero lang={lang} />
+
+  <!-- Interactive Client-Side Batch Workspace Island -->
+  <section id="workspace" class="px-4 sm:px-6 pb-16">
+    <BulkBgWorkspace client:load lang={lang} />
+  </section>
+
+  <!-- How It Works Section -->
+  <HowItWorks lang={lang} />
+
+  <!-- Feature Highlights -->
+  <Features lang={lang} />
+
+  <!-- Technical Comparison Table -->
+  <ComparisonTable lang={lang} />
+
+  <!-- Rich Localized SEO Guide -->
+  <SeoContent lang={lang} />
+
+  <!-- FAQ Accordion -->
+  <FaqSection lang={lang} />
+</Layout>
