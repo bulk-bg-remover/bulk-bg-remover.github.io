@@ -58,6 +58,8 @@ export default function BulkBgWorkspace({ lang = defaultLang }: WorkspaceProps) 
   const handleTierChange = async (tier: ModelTier) => {
     if (tier === selectedTier) return;
     setSelectedTier(tier);
+    const isDownloaded = aiPipeline.isTierDownloaded(tier);
+    setIsModelReady(isDownloaded || aiPipeline.isTierReady(tier));
     try {
       await aiPipeline.setModelTier(tier);
     } catch (e) {
@@ -67,22 +69,24 @@ export default function BulkBgWorkspace({ lang = defaultLang }: WorkspaceProps) 
 
   // Subscribe to model download progress
   useEffect(() => {
+    const status = aiPipeline.getReadyStatus();
+    setSelectedTier(status.modelTier);
+    setIsModelReady(status.isReady || status.isDownloaded);
+    setActiveDevice(status.device);
+
     const unsub = aiPipeline.subscribe((info) => {
       setModelProgress(info);
       if (info.status === 'ready') {
         setIsModelReady(true);
         setModelEverLoaded(true);
-        const status = aiPipeline.getReadyStatus();
-        setActiveDevice(status.device);
+        const st = aiPipeline.getReadyStatus();
+        setActiveDevice(st.device);
+      } else if (info.status === 'downloading' || info.status === 'init') {
+        if (!aiPipeline.isTierDownloaded(aiPipeline.getModelTier())) {
+          setIsModelReady(false);
+        }
       }
     });
-
-    const status = aiPipeline.getReadyStatus();
-    if (status.isReady) {
-      setIsModelReady(true);
-      setModelEverLoaded(true);
-      setActiveDevice(status.device);
-    }
 
     return () => unsub();
   }, []);
@@ -240,10 +244,13 @@ export default function BulkBgWorkspace({ lang = defaultLang }: WorkspaceProps) 
       return;
     }
 
-    try {
-      await aiPipeline.initialize();
-    } catch (err) {
-      console.error('Model initialization failed:', err);
+    // Initialize selected model tier (shows first-time download banner ONLY if not cached)
+    if (!aiPipeline.isTierReady(selectedTier)) {
+      try {
+        await aiPipeline.initialize(selectedTier);
+      } catch (err) {
+        console.error('Model initialization failed:', err);
+      }
     }
 
     const status = aiPipeline.getReadyStatus();
@@ -333,9 +340,11 @@ export default function BulkBgWorkspace({ lang = defaultLang }: WorkspaceProps) 
   const completedCount = items.filter((it) => it.status === 'completed').length;
   const totalCount = items.length;
 
+  const isSelectedTierDownloaded = aiPipeline.isTierDownloaded(selectedTier);
   const showModelBanner = Boolean(
-    modelProgress &&
+    !isSelectedTierDownloaded &&
     !isModelReady &&
+    modelProgress &&
     modelProgress.status !== 'ready' &&
     (modelProgress.status === 'downloading' ||
       modelProgress.status === 'init' ||
@@ -396,12 +405,12 @@ export default function BulkBgWorkspace({ lang = defaultLang }: WorkspaceProps) 
             {activeDevice === 'webgpu' ? (
               <>
                 <Zap className="w-3.5 h-3.5 text-amber-500" />
-                <span>WebGPU Accelerated</span>
+                <span>{t.webgpuActive}</span>
               </>
             ) : (
               <>
                 <Cpu className="w-3.5 h-3.5 text-[#8B639B]" />
-                <span>WASM SIMD Fallback</span>
+                <span>{t.wasmActive}</span>
               </>
             )}
           </div>
@@ -432,9 +441,9 @@ export default function BulkBgWorkspace({ lang = defaultLang }: WorkspaceProps) 
               {(t as any).modelTierFp16Desc || 'Crisp edges & hair separation. Perfect for 90% of laptops & smartphones.'}
             </p>
             <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-[#403D88]/30 text-[10px] font-medium text-slate-500 dark:text-slate-400">
-              <span>Size: {(t as any).modelTierFp16Size || '~40 MB'}</span>
+              <span>{(t as any).modelTierSizeLabel || 'Size:'} {(t as any).modelTierFp16Size || '~40 MB'}</span>
               {selectedTier === 'isnet_fp16' && (
-                <span className="text-[#8B639B] dark:text-[#F8B2B2] font-bold">● Selected</span>
+                <span className="text-[#8B639B] dark:text-[#F8B2B2] font-bold">{(t as any).modelTierSelectedBadge || '● Selected'}</span>
               )}
             </div>
           </button>
@@ -462,9 +471,9 @@ export default function BulkBgWorkspace({ lang = defaultLang }: WorkspaceProps) 
               {(t as any).modelTierInt8Desc || 'Lowest memory usage. Ideal for budget phones, slow internet & quick drafts.'}
             </p>
             <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-[#403D88]/30 text-[10px] font-medium text-slate-500 dark:text-slate-400">
-              <span>Size: {(t as any).modelTierInt8Size || '~20 MB'}</span>
+              <span>{(t as any).modelTierSizeLabel || 'Size:'} {(t as any).modelTierInt8Size || '~20 MB'}</span>
               {selectedTier === 'isnet_quint8' && (
-                <span className="text-[#8B639B] dark:text-[#F8B2B2] font-bold">● Selected</span>
+                <span className="text-[#8B639B] dark:text-[#F8B2B2] font-bold">{(t as any).modelTierSelectedBadge || '● Selected'}</span>
               )}
             </div>
           </button>
@@ -492,9 +501,9 @@ export default function BulkBgWorkspace({ lang = defaultLang }: WorkspaceProps) 
               {(t as any).modelTierFp32Desc || 'Full 32-bit floating point precision for complex fur & glass on high-end PCs.'}
             </p>
             <div className="flex items-center justify-between pt-1 border-t border-slate-100 dark:border-[#403D88]/30 text-[10px] font-medium text-slate-500 dark:text-slate-400">
-              <span>Size: {(t as any).modelTierFp32Size || '~80 MB'}</span>
+              <span>{(t as any).modelTierSizeLabel || 'Size:'} {(t as any).modelTierFp32Size || '~80 MB'}</span>
               {selectedTier === 'isnet' && (
-                <span className="text-[#8B639B] dark:text-[#F8B2B2] font-bold">● Selected</span>
+                <span className="text-[#8B639B] dark:text-[#F8B2B2] font-bold">{(t as any).modelTierSelectedBadge || '● Selected'}</span>
               )}
             </div>
           </button>
