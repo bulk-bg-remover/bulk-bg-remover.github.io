@@ -163,7 +163,7 @@ Unlike traditional cloud background removers that transmit user photos to remote
 ## ☕ Support the Developer
 
 If you find this free tool helpful, consider supporting the developer:  
-👉 **[Support on Ko-fi](https://ko-fi.com/kishara)**
+👉 **[Buy Me a Coffee](https://kisharadilshan.gumroad.com/coffee)**
 
 ---
 
